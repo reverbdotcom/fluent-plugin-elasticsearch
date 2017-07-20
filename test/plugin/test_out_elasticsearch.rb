@@ -649,7 +649,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     assert_equal(logstash_index, index_cmds.first['index']['_index'])
   end
 
-    def test_writes_to_logstash_index_with_specified_dateformat
+  def test_writes_to_logstash_index_with_specified_dateformat
     driver.configure("logstash_format true
                       logstash_dateformat %Y.%m")
     time = Time.parse Date.today.to_s
@@ -1008,6 +1008,31 @@ class ElasticsearchOutput < Test::Unit::TestCase
       driver.run
     }
     assert_equal(connection_resets, 1)
+  end
+
+  def test_logging_bulk_api_errors
+    bulk_api_body = {
+      "took": 30,
+      "errors": true,
+      "items": [
+        {"index": {"_index": "test-index", "status": 200}},
+        {"index": {"_index": "test-index", "status": 400, "error":{}}}
+      ]
+    }
+
+    stub_elastic_ping
+    stub_request(:post, "http://localhost:9200/_bulk").to_return(
+      :status => 200,
+      :body => JSON.dump(bulk_api_body),
+      :headers => {"Content-Type"=> "application/json"}
+    )
+
+    driver.emit(sample_record)
+    driver.run
+
+    log = driver.instance.router.emit_error_handler.log
+    failed = log.out.logs.grep(/400/)
+    assert_not_nil(failed)
   end
 
   def test_update_should_not_write_if_theres_no_id
