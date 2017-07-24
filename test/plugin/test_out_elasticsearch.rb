@@ -1016,6 +1016,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
       "errors": true,
       "items": [
         {"index": {"_index": "test-index", "status": 200}},
+        {"index": {"_index": "test-index", "status": 201}},
         {"index": {"_index": "test-index", "status": 400, "error":{}}}
       ]
     }
@@ -1032,8 +1033,29 @@ class ElasticsearchOutput < Test::Unit::TestCase
 
     log = driver.instance.router.emit_error_handler.log
     failed = log.out.logs.grep(/400/)
+    assert_equal(log.out.logs.size,4)
     assert_not_nil(failed)
   end
+  def test_not_logging_bulk_api_errors
+    bulk_api_body = {
+      "took": 30,
+      "errors": true
+     }
+
+    stub_elastic_ping
+    stub_request(:post, "http://localhost:9200/_bulk").to_return(
+      :status => 200,
+      :body => JSON.dump(bulk_api_body),
+      :headers => {"Content-Type"=> "application/json"}
+    )
+
+    driver.emit(sample_record)
+    driver.run
+
+    log = driver.instance.router.emit_error_handler.log
+    assert_equal(log.out.logs.size,1)
+  end
+
 
   def test_update_should_not_write_if_theres_no_id
     driver.configure("write_operation update\n")

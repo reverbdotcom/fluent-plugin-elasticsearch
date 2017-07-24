@@ -354,7 +354,8 @@ class Fluent::ElasticsearchOutput < Fluent::ObjectBufferedOutput
     begin
       response = client.bulk body: data
       if response['errors']
-        log_error_only(data, response)
+        # only check for bulk api errors
+        log_error_only(data, response) if !response["items"].nil?
       end
     rescue *client.transport.host_unreachable_exceptions => e
       if retries < 2
@@ -375,10 +376,10 @@ class Fluent::ElasticsearchOutput < Fluent::ObjectBufferedOutput
     log.error("Could not push log to Elasticsearch")
     _, lines = data.split("\n").partition.each_with_index{|e,i| i.even?}
     response["items"].each_with_index do |item,i|
-      if item["index"]["status"] != 200
-          log.error(item)
-          log.error(lines[i])
-      end
+      status_code = item["index"]["status"]
+      next if status_code.to_s.match(/2[0-9][0-9]/)
+      log.error(item)
+      log.error(lines[i])
     end
   end
 
