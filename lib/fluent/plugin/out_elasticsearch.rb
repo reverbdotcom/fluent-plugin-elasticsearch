@@ -375,11 +375,18 @@ class Fluent::ElasticsearchOutput < Fluent::ObjectBufferedOutput
   def log_error_only(data, response)
     log.error("Could not push log to Elasticsearch")
     _, lines = data.split("\n").partition.each_with_index{|e,i| i.even?}
-    response["items"].each_with_index do |item,i|
-      status_code = item["index"]["status"]
-      next if status_code.to_s.match(/2[0-9][0-9]/)
-      log.error(item)
-      log.error(lines[i])
+    begin
+      response["items"].each_with_index do |item,i|
+        response_value  = item.values_at("create","index","update","delete")
+        response_value.each_with_index do |r,j|
+          next if r.nil?
+          status_code = r["status"]
+          next if status_code.to_s.match(/2[0-9][0-9]/)
+          log.error(r)
+        end
+      end
+    rescue => e
+      log.error(e.backtrace)
     end
   end
 

@@ -1017,7 +1017,10 @@ class ElasticsearchOutput < Test::Unit::TestCase
       "items": [
         {"index": {"_index": "test-index", "status": 200}},
         {"index": {"_index": "test-index", "status": 201}},
-        {"index": {"_index": "test-index", "status": 400, "error":{}}}
+        {"index": {"_index": "test-index", "status": 400, "error":{}}},
+        {"create": {"_index": "test-index", "status": 201, "error":{}}},
+        {"delete": {"_index": "test-index", "status": 200, "error":{}}},
+        {"update": {"_index": "test-index", "status": 200, "error":{}}},
       ]
     }
 
@@ -1033,7 +1036,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
 
     log = driver.instance.router.emit_error_handler.log
     failed = log.out.logs.grep(/400/)
-    assert_equal(log.out.logs.size,4)
+    assert_equal(log.out.logs.size,3)
     assert_not_nil(failed)
   end
   def test_not_logging_bulk_api_errors
